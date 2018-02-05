@@ -43,7 +43,7 @@ namespace MultithreadingTest
             this.action = action;
             this.canExecute = canExecute;
         }
-        
+
         public bool CanExecute(object parameter)
         {
             return canExecute;
@@ -65,7 +65,10 @@ namespace MultithreadingTest
 
         private Worker worker;
 
+        private SynchronizationContext context;
+
         public DependencyProperty StartIsEnabledProperty;
+
 
         public ViewModel()
         {
@@ -73,8 +76,10 @@ namespace MultithreadingTest
             StartIsEnabledProperty = DependencyProperty.Register("StartIsEnabled", typeof(bool), typeof(ViewModel));
 
             StartIsEnabled = true;
+
+            context = SynchronizationContext.Current;
         }
-        
+
         public ICommand ClickCommandStart
         {
             get
@@ -114,8 +119,9 @@ namespace MultithreadingTest
             worker = new Worker();
             worker.ProcessAdvanced += Worker_ProcessAdvanced;
             worker.WorkComplete += Worker_WorkComplete;
-            
-            worker.Work();
+
+            Thread thread = new Thread(worker.Work);
+            thread.Start(context);
         }
 
         private void Worker_WorkComplete(bool cancelled)
@@ -145,22 +151,24 @@ namespace MultithreadingTest
     {
         private bool cancelled = false;
 
-        public void Work()
+        public void Work(object param)
         {
+            SynchronizationContext context = (SynchronizationContext) param;
+
             for (int i = 0; i < 10; i++)
             {
-                if(cancelled)
+                if (cancelled)
                     break;
 
                 Console.WriteLine("Working...");
                 Thread.Sleep(200);
 
                 // send event abount progress
-                ProcessAdvanced(i);
+                context.Send(OnProgressAdvanced, i);
             }
 
             // send event about work done
-            WorkComplete(cancelled);
+            context.Send(OnWorkComplete, cancelled);
         }
 
         public void Cancel()
@@ -172,6 +180,15 @@ namespace MultithreadingTest
         public event Action<int> ProcessAdvanced;
 
         public event Action<bool> WorkComplete;
+
+        public void OnProgressAdvanced(object progress)
+        {
+            ProcessAdvanced((int)progress);
+        }
+        public void OnWorkComplete(object cancelled)
+        {
+            WorkComplete((bool) cancelled);
+        }
 
     }
 
