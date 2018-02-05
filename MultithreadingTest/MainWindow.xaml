@@ -17,7 +17,7 @@
 					<ColumnDefinition/>
 					<ColumnDefinition/>
 				</Grid.ColumnDefinitions>
-				<Button x:Name="StartButton" Grid.Column="0" Content="Хуярь!" VerticalAlignment="Top" Margin="10 0 10 10" Command="{Binding ClickCommandStart}" IsEnabled="{Binding StartIsEnabled, Mode=OneWayToSource}" />
+				<Button x:Name="StartButton" Grid.Column="0" Content="Хуярь!" VerticalAlignment="Top" Margin="10 0 10 10" Command="{Binding ClickCommandStart}" IsEnabled="{Binding StartIsEnabled}" />
 				<Button x:Name="CancelButton" Grid.Column="1" Content="Не хуярь!" VerticalAlignment="Top" Margin="10 0 10 10" Command="{Binding ClickCommandCancel}" />
 			</Grid>
 		</StackPanel>

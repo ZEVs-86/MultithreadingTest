@@ -65,13 +65,14 @@ namespace MultithreadingTest
 
         private Worker worker;
 
-        private bool startIsEnabled = false;
-
-        
+        public DependencyProperty StartIsEnabledProperty;
 
         public ViewModel()
         {
             canExecute = true;
+            StartIsEnabledProperty = DependencyProperty.Register("StartIsEnabled", typeof(bool), typeof(ViewModel));
+
+            StartIsEnabled = true;
         }
         
         public ICommand ClickCommandStart
@@ -93,13 +94,13 @@ namespace MultithreadingTest
         {
             get
             {
-                Console.WriteLine("get");
-                return startIsEnabled;
+                Console.WriteLine("get property: " + StartIsEnabledProperty.ToString());
+                return (bool)GetValue(StartIsEnabledProperty);
             }
             set
             {
-                Console.WriteLine("set" + value.ToString());
-                startIsEnabled = value;
+                Console.WriteLine("set property: " + value.ToString());
+                SetValue(StartIsEnabledProperty, value);
             }
         }
 
@@ -108,7 +109,7 @@ namespace MultithreadingTest
             Console.WriteLine("Action Start");
 
             // TODO: how to interact with UI elements?
-            startIsEnabled = false;
+            StartIsEnabled = false;
 
             worker = new Worker();
             worker.ProcessAdvanced += Worker_ProcessAdvanced;
@@ -152,7 +153,7 @@ namespace MultithreadingTest
                     break;
 
                 Console.WriteLine("Working...");
-                Thread.Sleep(100);
+                Thread.Sleep(200);
 
                 // send event abount progress
                 ProcessAdvanced(i);
