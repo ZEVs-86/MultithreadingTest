@@ -26,11 +26,10 @@ namespace MultithreadingTest
             InitializeComponent();
             DataContext = new ViewModel();
         }
-
     }
 
     /// <summary>
-    /// Button's
+    /// Button's actions from XAML handler
     /// </summary>
     public class CommandHandler : ICommand
     {
@@ -43,7 +42,7 @@ namespace MultithreadingTest
             this.action = action;
             this.canExecute = canExecute;
         }
-        
+
         public bool CanExecute(object parameter)
         {
             return canExecute;
@@ -56,54 +55,41 @@ namespace MultithreadingTest
     }
 
     /// <summary>
-    /// Button's actions
+    /// Button's actions and multithreading work event handlers
     /// </summary>
     public class ViewModel : DependencyObject
     {
         // private ICommand click;
         private bool canExecute;
-
         private Worker worker;
+        private SynchronizationContext context;
 
         public DependencyProperty StartIsEnabledProperty;
+        public DependencyProperty ProgressProperty;
 
         public ViewModel()
         {
             canExecute = true;
+
             StartIsEnabledProperty = DependencyProperty.Register("StartIsEnabled", typeof(bool), typeof(ViewModel));
+            ProgressProperty = DependencyProperty.Register("Progress", typeof(int), typeof(ViewModel));
+
+            context = SynchronizationContext.Current;
 
             StartIsEnabled = true;
         }
-        
+
+        // click from XAML
         public ICommand ClickCommandStart
         {
-            get
-            {
-                return new CommandHandler(() => ActionStart(), canExecute);
-            }
+            get { return new CommandHandler(() => ActionStart(), canExecute); }            
         }
         public ICommand ClickCommandCancel
         {
-            get
-            {
-                return new CommandHandler(() => ActionCancel(), canExecute);
-            }
+            get { return new CommandHandler(() => ActionCancel(), canExecute); }
         }
 
-        public bool StartIsEnabled
-        {
-            get
-            {
-                Console.WriteLine("get property: " + StartIsEnabledProperty.ToString());
-                return (bool)GetValue(StartIsEnabledProperty);
-            }
-            set
-            {
-                Console.WriteLine("set property: " + value.ToString());
-                SetValue(StartIsEnabledProperty, value);
-            }
-        }
-
+        // click start action (first thread)
         public void ActionStart()
         {
             Console.WriteLine("Action Start");
@@ -114,29 +100,54 @@ namespace MultithreadingTest
             worker = new Worker();
             worker.ProcessAdvanced += Worker_ProcessAdvanced;
             worker.WorkComplete += Worker_WorkComplete;
-            
-            worker.Work();
+
+            Thread thread = new Thread(worker.Work);
+            thread.Start(context);
         }
 
+        // click cancel action (first thread)
+        public void ActionCancel()
+        {
+            StartIsEnabled = true;
+            worker.Cancel();
+            Console.WriteLine("Action Cancel");
+        }
+
+        // properties to interact with XAML
+        public bool StartIsEnabled
+        {
+            get { return (bool)GetValue(StartIsEnabledProperty); }
+            set { SetValue(StartIsEnabledProperty, value); }
+        }
+        public int Progress
+        {
+            get { return (int)GetValue(ProgressProperty); }
+            set { SetValue(ProgressProperty, value * 10); }
+        }
+        
+        // event handler (executes in second thread)
         private void Worker_WorkComplete(bool cancelled)
         {
+            StartIsEnabled = true;
+
+            if (cancelled)
+                Progress = 0;
+
             if (cancelled)
                 Console.WriteLine("Work cancelled!");
             else
                 Console.WriteLine("Work done.");
         }
 
-        public void ActionCancel()
-        {
-            Console.WriteLine("Action Cancel");
-        }
-
+        // event handler (starts from second thread)
         private void Worker_ProcessAdvanced(int progress)
         {
-            Console.WriteLine("Progress handled " + progress.ToString());
+            Progress = progress + 1;    // dirty progressbar delay hack
+            Progress = progress;
+            Console.WriteLine("Progress handled " + progress.ToString());            
         }
     }
-
+    
 
     /// <summary>
     /// Slow methods that shoud be started asynchronously
@@ -145,22 +156,24 @@ namespace MultithreadingTest
     {
         private bool cancelled = false;
 
-        public void Work()
+        public void Work(object param)
         {
-            for (int i = 0; i < 10; i++)
+            SynchronizationContext context = (SynchronizationContext) param;
+
+            for (int i = 1; i <= 10; i++)
             {
-                if(cancelled)
+                if (cancelled)
                     break;
 
                 Console.WriteLine("Working...");
                 Thread.Sleep(200);
 
                 // send event abount progress
-                ProcessAdvanced(i);
+                context.Send(OnProgressAdvanced, i);
             }
 
             // send event about work done
-            WorkComplete(cancelled);
+            context.Send(OnWorkComplete, cancelled);
         }
 
         public void Cancel()
@@ -172,6 +185,16 @@ namespace MultithreadingTest
         public event Action<int> ProcessAdvanced;
 
         public event Action<bool> WorkComplete;
+
+        // worker actions wrapper voids for sync.context's call
+        public void OnProgressAdvanced(object progress)
+        {
+            ProcessAdvanced((int)progress);
+        }
+        public void OnWorkComplete(object cancelled)
+        {
+            WorkComplete((bool) cancelled);
+        }
 
     }
 
