@@ -11,7 +11,7 @@
 		Width="525">
     <Grid>
 		<StackPanel>
-			<ProgressBar Height="20" VerticalAlignment="Top" Margin="10 10 10 10" />
+			<ProgressBar x:Name="ProgressBar" Height="20" VerticalAlignment="Top" Margin="10 10 10 10" Value="{Binding Progress}"/>
 			<Grid>
 				<Grid.ColumnDefinitions>
 					<ColumnDefinition/>
